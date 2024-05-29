@@ -1,26 +1,16 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.IO;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
-using System.Windows;
-using System.Windows.Markup;
 using ZXing;
 using ZXing.Common;
 using ZXing.Windows.Compatibility;
 using AForge.Video.DirectShow;
-using ZXing.QrCode;
 using AForge.Video;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.Reflection.PortableExecutable;
+using AForge.Imaging;
+using AForge.Imaging.Filters;
+using ZXing.QrCode;
+using static System.Windows.Forms.Design.AxImporter;
+
 
 namespace BarCodeScanner
 {
@@ -30,11 +20,31 @@ namespace BarCodeScanner
         private VideoCaptureDevice? _captureDevice;
         private BarcodeReader? _barcodeReader;
 
+
         public frmBarCodeMain()
         {
             InitializeComponent();
             _captureDevice = null;
-            _barcodeReader = new BarcodeReader();
+            _barcodeReader = new BarcodeReader
+            {
+                Options = new DecodingOptions
+                {
+                    PossibleFormats = new List<BarcodeFormat>
+                    {
+                        BarcodeFormat.MAXICODE,
+                        BarcodeFormat.QR_CODE,
+                        BarcodeFormat.CODE_128,
+                        BarcodeFormat.UPC_A,
+                        BarcodeFormat.CODE_39,
+                        BarcodeFormat.PDF_417,
+                        BarcodeFormat.All_1D
+                    },
+                    TryHarder = true,
+                    PureBarcode = false
+                }
+            };
+
+
 
             // Populate the comboBoxCameras with available video devices
             var videoDevices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
@@ -49,8 +59,12 @@ namespace BarCodeScanner
                 cmboCameras.SelectedIndex = 0;
             }
 
-            // Subscribe to the Load event
+            // Subscribe to the Load & Closing events
             this.Load += new EventHandler(Form_Load);
+            this.FormClosing += new FormClosingEventHandler(Form_FormClosing);
+
+            // Allows the user to click a link and have the app open a web browser
+            this.rtbScanBarcode.LinkClicked += new LinkClickedEventHandler(rtbScanBarcode_LinkClicked);
         }
 
         private void Form_Load(object sender, EventArgs e)
@@ -70,9 +84,11 @@ namespace BarCodeScanner
                     var videoCapabilities = _captureDevice.VideoCapabilities;
                     foreach (var capability in videoCapabilities)
                     {
-                        if (capability.FrameSize.Width == 800 && capability.FrameSize.Height == 600)
+                        if (capability.FrameSize.Width == 520 && capability.FrameSize.Height == 329)
                         {
                             _captureDevice.VideoResolution = capability;
+                            pbScan.Width = capability.FrameSize.Width;
+                            pbScan.Height = capability.FrameSize.Height;
                             break;
                         }
                     }
@@ -90,17 +106,24 @@ namespace BarCodeScanner
         {
             if (pbScan.Image != null)
             {
-                // Scan barcode from the current frame displayed in the PictureBox
+
+                // Preprocess the image before decoding
+                // Bitmap processedImage = PreprocessImage((Bitmap)pbScan.Image);
+                
+                // Scan barcode from the current frame displayed in the PictureBox (No pre-processing)
                 var result = _barcodeReader.Decode((Bitmap)pbScan.Image);
+
+                // Using preprocessing
+                //var result = _barcodeReader.Decode(processedImage);
 
                 if (result != null)
                 {
                     // Barcode found, display the contents in the textbox
-                    tbScanBarCode.Text = result.Text;
+                    rtbScanBarcode.Text = result.Text;
                 }
                 else
                 {
-                    tbScanBarCode.Text = "No barcode found";
+                    rtbScanBarcode.Text = "No barcode found";
                 }
             }
         }
@@ -112,24 +135,70 @@ namespace BarCodeScanner
                 // Get the captured frame
                 Bitmap bitmap = (Bitmap)eventArgs.Frame.Clone();
 
-                // Display the frame in the PictureBox
-                pbScan.Invoke((MethodInvoker) delegate
+                // Preprocess the image  NOTE: doesn't help so commenting out
+                //bitmap = PreprocessImage(bitmap);
+
+                // Process the frame on a separate thread
+                Task.Run(() =>
                 {
-                    pbScan.SizeMode = PictureBoxSizeMode.Zoom;
-                    pbScan.Image = bitmap;
+                    // Scale the frame based on a zoom factor
+                    // Note: Zoom code slows things down too much
+                    //float zoomFactor = 1.5f; // Adjust the zoom factor as needed
+                    //int newWidth = (int)(bitmap.Width * zoomFactor);
+                    //int newHeight = (int)(bitmap.Height * zoomFactor);
+
+                    //Bitmap zoomedFrame = new Bitmap(bitmap, newWidth, newHeight);
+
+                    // Display the frame in the PictureBox on the UI thread
+                    pbScan.Invoke((MethodInvoker) delegate
+                    {
+                        pbScan.SizeMode = PictureBoxSizeMode.Zoom;
+                        pbScan.Image = (Bitmap) bitmap.Clone();
+                    });
+
+                    // Dispose the bitmap
+                    bitmap.Dispose();
                 });
             }
         }
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
+        private Bitmap PreprocessImage(Bitmap image)
+        {
+            // Convert the image to grayscale
+            //Grayscale gsfilter = new Grayscale(0.2125, 0.7154, 0.0721);
+            //Bitmap grayscaleImage = gsfilter.Apply(image);
+            Bitmap grayscaleImage = Grayscale.CommonAlgorithms.BT709.Apply(image);
+
+            // Adjust the contrast and brightness
+            ContrastCorrection contrastFilter = new ContrastCorrection(10);
+            Bitmap adjustedImage = contrastFilter.Apply(grayscaleImage);
+
+            // Apply a sharpening filter
+            Sharpen sharpenFilter = new Sharpen();
+            Bitmap sharpenedImage = sharpenFilter.Apply(adjustedImage);
+
+            // Dispose the intermediate bitmaps
+            grayscaleImage.Dispose();
+            adjustedImage.Dispose();
+
+            return sharpenedImage;
+        }
+
+        private void rtbScanBarcode_LinkClicked(object sender, LinkClickedEventArgs e)
+        {
+            // Open the URL in the default web browser
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.LinkText) { UseShellExecute = true });
+        }
+
+        private void Form_FormClosing(object sender, FormClosingEventArgs e)
         {
             if (_captureDevice != null && _captureDevice.IsRunning)
             {
                 _captureDevice.SignalToStop();
                 _captureDevice.WaitForStop();
+                _captureDevice.NewFrame -= CaptureDevice_NewFrame;
+                _captureDevice = null;
             }
-            base.OnFormClosing(e);
         }
     }
-
 }

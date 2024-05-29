@@ -8,14 +8,14 @@
         private System.ComponentModel.IContainer components = null;
 
         /// <summary>
-        ///  Clean up any resources being used.
+        /// Clean up any resources being used.
         /// </summary>
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
+            if (disposing)
             {
-                components.Dispose();
+                // Dispose of any managed resources here
             }
             base.Dispose(disposing);
         }
@@ -30,9 +30,9 @@
         {
             pbScan = new PictureBox();
             btnScan = new Button();
-            tbScanBarCode = new TextBox();
             lblScannedBCode = new Label();
             cmboCameras = new ComboBox();
+            rtbScanBarcode = new RichTextBox();
             ((System.ComponentModel.ISupportInitialize) pbScan).BeginInit();
             SuspendLayout();
             // 
@@ -41,27 +41,20 @@
             pbScan.BorderStyle = BorderStyle.FixedSingle;
             pbScan.Location = new Point(46, 98);
             pbScan.Name = "pbScan";
-            pbScan.Size = new Size(438, 329);
+            pbScan.Size = new Size(430, 329);
             pbScan.TabIndex = 0;
             pbScan.TabStop = false;
             // 
             // btnScan
             // 
             btnScan.Font = new Font("Lucida Sans", 11F, FontStyle.Regular, GraphicsUnit.Point,  0);
-            btnScan.Location = new Point(589, 98);
+            btnScan.Location = new Point(510, 98);
             btnScan.Name = "btnScan";
             btnScan.Size = new Size(84, 35);
             btnScan.TabIndex = 1;
             btnScan.Text = "Scan";
             btnScan.UseVisualStyleBackColor = true;
             btnScan.Click += btnScan_Click;
-            // 
-            // tbScanBarCode
-            // 
-            tbScanBarCode.Location = new Point(43, 468);
-            tbScanBarCode.Name = "tbScanBarCode";
-            tbScanBarCode.Size = new Size(627, 25);
-            tbScanBarCode.TabIndex = 2;
             // 
             // lblScannedBCode
             // 
@@ -80,19 +73,28 @@
             cmboCameras.Size = new Size(310, 25);
             cmboCameras.TabIndex = 4;
             // 
+            // rtbScanBarcode
+            // 
+            rtbScanBarcode.Location = new Point(49, 476);
+            rtbScanBarcode.Name = "rtbScanBarcode";
+            rtbScanBarcode.Size = new Size(427, 68);
+            rtbScanBarcode.TabIndex = 5;
+            rtbScanBarcode.Text = "";
+            // 
             // frmBarCodeMain
             // 
             AutoScaleDimensions = new SizeF(9F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(703, 519);
+            ClientSize = new Size(631, 564);
+            Controls.Add(rtbScanBarcode);
             Controls.Add(cmboCameras);
             Controls.Add(lblScannedBCode);
-            Controls.Add(tbScanBarCode);
             Controls.Add(btnScan);
             Controls.Add(pbScan);
             Font = new Font("Lucida Sans", 11.25F, FontStyle.Regular, GraphicsUnit.Point,  0);
             Name = "frmBarCodeMain";
             Text = "Bar Code Scanner";
+            FormClosing += Form_FormClosing;
             ((System.ComponentModel.ISupportInitialize) pbScan).EndInit();
             ResumeLayout(false);
             PerformLayout();
@@ -102,8 +104,8 @@
 
         private PictureBox pbScan;
         private Button btnScan;
-        private TextBox tbScanBarCode;
         private Label lblScannedBCode;
         private ComboBox cmboCameras;
+        private RichTextBox rtbScanBarcode;
     }
 }
